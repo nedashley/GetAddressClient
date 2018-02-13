@@ -25,7 +25,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
-public final class GetAddressService implements Closeable {
+public class GetAddressService implements Closeable {
 
     private final String apiKey;
     private final String hostname;
@@ -54,7 +54,7 @@ public final class GetAddressService implements Closeable {
         initialise();
     }
 
-    protected void initialise() {
+    private void initialise() {
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
