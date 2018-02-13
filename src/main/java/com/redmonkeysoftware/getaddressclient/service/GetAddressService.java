@@ -27,30 +27,34 @@ import org.apache.http.impl.client.HttpClientBuilder;
 
 public class GetAddressService implements Closeable {
 
-    private String apiKey;
-    private String hostname;
-    private boolean ssl;
-    private String postcodePath;
-    private String postcodePropertyPath;
-    private ObjectMapper mapper;
-    private HttpClientContext context;
+    private final String apiKey;
+    private final String hostname;
+    private final boolean ssl;
+    private final String postcodePath;
+    private final String postcodePropertyPath;
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final HttpClientContext context = HttpClientContext.create();
     private CloseableHttpClient client;
 
     public GetAddressService(final String apiKey) {
-        initialise(apiKey, "api.getAddress.io", true, "/v2/uk/{postcode}", "/v2/uk/{postcode}/{property}");
+        this.apiKey = apiKey;
+        this.hostname = "api.getAddress.io";
+        this.ssl = true;
+        this.postcodePath = "/v2/uk/{postcode}";
+        this.postcodePropertyPath = "/v2/uk/{postcode}/{property}";
+        initialise();
     }
 
     public GetAddressService(final String apiKey, final String hostname, final boolean ssl, final String postcodePath, final String postcodePropertyPath) {
-        initialise(apiKey, hostname, ssl, postcodePath, postcodePropertyPath);
-    }
-
-    protected void initialise(final String apiKey, final String hostname, final boolean ssl, final String postcodePath, final String postcodePropertyPath) {
         this.apiKey = apiKey;
         this.hostname = hostname;
         this.ssl = ssl;
         this.postcodePath = postcodePath;
         this.postcodePropertyPath = postcodePropertyPath;
-        mapper = new ObjectMapper();
+        initialise();
+    }
+
+    protected void initialise() {
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -62,7 +66,6 @@ public class GetAddressService implements Closeable {
         credsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials("api-key", apiKey));
         AuthCache authCache = new BasicAuthCache();
         authCache.put(targetHost, new BasicScheme());
-        context = HttpClientContext.create();
         context.setCredentialsProvider(credsProvider);
         context.setAuthCache(authCache);
         context.setRequestConfig(RequestConfig.custom().setConnectionRequestTimeout(6000).setConnectTimeout(6000).setSocketTimeout(6000).build());
