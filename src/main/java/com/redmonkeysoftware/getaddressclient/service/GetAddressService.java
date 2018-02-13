@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.redmonkeysoftware.getaddressclient.model.AddressLookupResult;
 import com.redmonkeysoftware.getaddressclient.model.GetAddressApiException;
 import com.redmonkeysoftware.getaddressclient.model.InvalidPostcodeException;
+import java.io.Closeable;
 import java.io.IOException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
@@ -17,28 +18,35 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.HttpClientUtils;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
-public class GetAddressService {
+public class GetAddressService implements Closeable {
 
-    private static GetAddressService instance;
-    private final String apiKey;
-    private final String hostname;
-    private final int port;
-    private final boolean ssl;
-    private final String postcodePath;
-    private final String postcodePropertyPath;
-    private final ObjectMapper mapper;
-    private final HttpClientContext context;
+    private String apiKey;
+    private String hostname;
+    private boolean ssl;
+    private String postcodePath;
+    private String postcodePropertyPath;
+    private ObjectMapper mapper;
+    private HttpClientContext context;
+    private CloseableHttpClient client;
 
-    private GetAddressService(final String apiKey, final String hostname, final int port, final boolean ssl, final String postcodePath, final String postcodePropertyPath) {
+    public GetAddressService(final String apiKey) {
+        initialise(apiKey, "api.getAddress.io", true, "/v2/uk/{postcode}", "/v2/uk/{postcode}/{property}");
+    }
+
+    public GetAddressService(final String apiKey, final String hostname, final boolean ssl, final String postcodePath, final String postcodePropertyPath) {
+        initialise(apiKey, hostname, ssl, postcodePath, postcodePropertyPath);
+    }
+
+    protected void initialise(final String apiKey, final String hostname, final boolean ssl, final String postcodePath, final String postcodePropertyPath) {
         this.apiKey = apiKey;
         this.hostname = hostname;
-        this.port = port;
         this.ssl = ssl;
         this.postcodePath = postcodePath;
         this.postcodePropertyPath = postcodePropertyPath;
@@ -49,7 +57,7 @@ public class GetAddressService {
         mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         mapper.configure(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, true);
         mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-        HttpHost targetHost = new HttpHost(hostname, port, ssl ? "https" : "http");
+        HttpHost targetHost = new HttpHost(hostname, ssl ? 443 : 80, ssl ? "https" : "http");
         CredentialsProvider credsProvider = new BasicCredentialsProvider();
         credsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials("api-key", apiKey));
         AuthCache authCache = new BasicAuthCache();
@@ -58,13 +66,11 @@ public class GetAddressService {
         context.setCredentialsProvider(credsProvider);
         context.setAuthCache(authCache);
         context.setRequestConfig(RequestConfig.custom().setConnectionRequestTimeout(6000).setConnectTimeout(6000).setSocketTimeout(6000).build());
+        client = HttpClientBuilder.create().build();
     }
 
-    public static synchronized GetAddressService getInstance(final String apiKey) {
-        if (instance == null) {
-            instance = new GetAddressService(apiKey, "api.getAddress.io", 443, true, "/v2/uk/{postcode}", "/v2/uk/{postcode}/{property}");
-        }
-        return instance;
+    public void close() {
+        HttpClientUtils.closeQuietly(client);
     }
 
     public AddressLookupResult lookup(String postcode) throws InvalidPostcodeException, GetAddressApiException {
@@ -72,7 +78,7 @@ public class GetAddressService {
             postcode = StringUtils.trim(StringUtils.upperCase(postcode));
             if (postcode.matches("^\\s*(([Gg][Ii][Rr] 0[Aa]{2})|((([A-Za-z][0-9]{1,2})|(([A-Za-z][A-Ha-hJ-Yj-y][0-9]{1,2})|(([A-Za-z][0-9][A-Za-z])|([A-Za-z][A-Ha-hJ-Yj-y][0-9]?[A-Za-z])))) {0,1}[0-9][A-Za-z]{2})\\s*$)")) {
                 postcode = postcode.replaceAll("[^A-Za-z0-9]", "");
-                try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
+                try {
                     HttpGet request = new HttpGet((ssl ? "https://" : "http://") + hostname + StringUtils.replace(postcodePath, "{postcode}", postcode));
                     request.setHeader("Accept", "application/json");
                     AddressLookupResult result = client.execute(request, new AddressLookupResultJsonResponseHandler(mapper), context);
@@ -95,7 +101,7 @@ public class GetAddressService {
                 if (StringUtils.isNotBlank(property)) {
                     postcode = postcode.replaceAll("[^A-Za-z0-9]", "");
                     property = StringUtils.trim(property);
-                    try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
+                    try {
                         HttpGet request = new HttpGet((ssl ? "https://" : "http://") + hostname + StringUtils.replace(StringUtils.replace(postcodePropertyPath, "{postcode}", postcode), "{property}", property));
                         request.setHeader("Accept", "application/json");
                         AddressLookupResult result = client.execute(request, new AddressLookupResultJsonResponseHandler(mapper), context);
