@@ -25,7 +25,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
-public class GetAddressService implements Closeable {
+public final class GetAddressService implements Closeable {
 
     private final String apiKey;
     private final String hostname;
@@ -72,6 +72,7 @@ public class GetAddressService implements Closeable {
         client = HttpClientBuilder.create().build();
     }
 
+    @Override
     public void close() {
         HttpClientUtils.closeQuietly(client);
     }
