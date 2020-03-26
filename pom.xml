@@ -3,8 +3,27 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.redmonkeysoftware</groupId>
     <artifactId>GetAddressClient</artifactId>
-    <version>1.0</version>
+    <version>1.0.0-RELEASE</version>
     <packaging>jar</packaging>
+
+    <repositories>
+        <repository>
+            <id>maven-public</id>
+            <url>https://nexus.conveylaw.com/repository/maven-public/</url>
+        </repository>
+    </repositories>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>nexus-snapshots</id>
+            <url>https://nexus.conveylaw.com/repository/maven-snapshots/</url>
+        </snapshotRepository>
+        <repository>
+            <id>nexus-releases</id>
+            <url>https://nexus.conveylaw.com/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
